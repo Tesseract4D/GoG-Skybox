@@ -3,11 +3,12 @@ package vazkii.skybox;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.multiplayer.WorldClient;
-import net.minecraft.world.World;
+import net.minecraft.world.WorldProvider;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
-import vazkii.skybox.SkyblockSkyRenderer;
+
+import java.lang.reflect.Field;
 
 public class ModEventHandler {
     public static int ticksInGame = 0;
@@ -17,7 +18,7 @@ public class ModEventHandler {
 
     private static void calcDelta() {
         float oldTotal = total;
-        total = (float)ticksInGame + partialTicks;
+        total = (float) ticksInGame + partialTicks;
         delta = total - oldTotal;
     }
 
@@ -44,8 +45,8 @@ public class ModEventHandler {
     @SubscribeEvent
     public static void onRender(RenderWorldLastEvent event) {
         WorldClient world = Minecraft.getMinecraft().world;
-        if (((World)world).provider.getDimension() == 0 && !(((World)world).provider.getSkyRenderer() instanceof SkyblockSkyRenderer)) {
-            ((World)world).provider.setSkyRenderer(new SkyblockSkyRenderer());
+        if (world.provider.getDimension() == 1 && !(world.provider.getSkyRenderer() instanceof SkyblockSkyRenderer)) {
+            world.provider.setSkyRenderer(new SkyblockSkyRenderer());
         }
     }
 }

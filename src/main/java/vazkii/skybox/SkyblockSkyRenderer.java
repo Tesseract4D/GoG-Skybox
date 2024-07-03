@@ -2,331 +2,487 @@ package vazkii.skybox;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.WorldClient;
-import net.minecraft.client.renderer.*;
+import net.minecraft.client.renderer.BufferBuilder;
+import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.OpenGlHelper;
+import net.minecraft.client.renderer.RenderHelper;
+import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
-import net.minecraft.client.renderer.vertex.VertexBuffer;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraftforge.client.IRenderHandler;
+import org.lwjgl.opengl.GL11;
 
 import java.util.Random;
 
 public class SkyblockSkyRenderer extends IRenderHandler {
-    private static final ResourceLocation textureSkybox = new ResourceLocation("gogskybox:textures/skybox.png");
-    private static final ResourceLocation textureRainbow = new ResourceLocation("gogskybox:textures/rainbow.png");
+
+    private static final ResourceLocation textureSkybox = new ResourceLocation(GoGSkybox.MISC_SKYBOX);
+    private static final ResourceLocation textureRainbow = new ResourceLocation(GoGSkybox.MISC_RAINBOW);
     private static final ResourceLocation MOON_PHASES_TEXTURES = new ResourceLocation("textures/environment/moon_phases.png");
     private static final ResourceLocation SUN_TEXTURES = new ResourceLocation("textures/environment/sun.png");
-    private static final ResourceLocation[] planetTextures = new ResourceLocation[]{new ResourceLocation("gogskybox:textures/planet0.png"), new ResourceLocation("gogskybox:textures/planet1.png"), new ResourceLocation("gogskybox:textures/planet2.png"), new ResourceLocation("gogskybox:textures/planet3.png"), new ResourceLocation("gogskybox:textures/planet4.png"), new ResourceLocation("gogskybox:textures/planet5.png")};
+    private static final ResourceLocation[] planetTextures = new ResourceLocation[] {
+            new ResourceLocation(GoGSkybox.MISC_PLANET + "0.png"),
+            new ResourceLocation(GoGSkybox.MISC_PLANET + "1.png"),
+            new ResourceLocation(GoGSkybox.MISC_PLANET + "2.png"),
+            new ResourceLocation(GoGSkybox.MISC_PLANET + "3.png"),
+            new ResourceLocation(GoGSkybox.MISC_PLANET + "4.png"),
+            new ResourceLocation(GoGSkybox.MISC_PLANET + "5.png")
+    };
 
+    // Copy of overworld section of RenderGlobal.renderSky(), heavily modified
+    @Override
     public void render(float partialTicks, WorldClient world, Minecraft mc) {
-        int i;
-        float celAng;
-        VertexBuffer skyVBO;
-        int glSkyList;
-        try {
-            glSkyList = (int) ModMethodHandles.glSkyList_getter.invokeExact(mc.renderGlobal);
-            skyVBO = (VertexBuffer) ModMethodHandles.skyVBO_getter.invokeExact(mc.renderGlobal);
-        } catch (Throwable t) {
-            return;
-        }
+        // Environment setup
+        int glSkyList = mc.renderGlobal.glSkyList;
+        net.minecraft.client.renderer.vertex.VertexBuffer skyVBO = mc.renderGlobal.skyVBO;
+
+        // Begin
         GlStateManager.disableTexture2D();
         Vec3d vec3d = world.getSkyColor(mc.getRenderViewEntity(), partialTicks);
-        float f = (float) vec3d.x;
-        float f1 = (float) vec3d.y;
-        float f2 = (float) vec3d.z;
-        float insideVoid = 0.0f;
-        if (mc.player.posY <= -2.0) {
-            insideVoid = (float) Math.min(1.0, -(mc.player.posY + 2.0) / 30.0);
-        }
-        f = Math.max(0.0f, f - insideVoid);
-        f1 = Math.max(0.0f, f1 - insideVoid);
-        f2 = Math.max(0.0f, f2 - insideVoid);
+        float f = (float)vec3d.x;
+        float f1 = (float)vec3d.y;
+        float f2 = (float)vec3d.z;
+
+        // Botania - darken when in void
+        float insideVoid = 0;
+        if(mc.player.posY <= -2)
+            insideVoid = (float) Math.min(1F, -(mc.player.posY + 2) / 30F);
+
+        f = Math.max(0F, f - insideVoid);
+        f1 = Math.max(0F, f1 - insideVoid);
+        f2 = Math.max(0F, f2 - insideVoid);
+
+		/*if (pass != 2) Botania - no anaglyph stuff
+		{
+			float f3 = (f * 30.0F + f1 * 59.0F + f2 * 11.0F) / 100.0F;
+			float f4 = (f * 30.0F + f1 * 70.0F) / 100.0F;
+			float f5 = (f * 30.0F + f2 * 70.0F) / 100.0F;
+			f = f3;
+			f1 = f4;
+			f2 = f5;
+		}*/
+
         GlStateManager.color(f, f1, f2);
         Tessellator tessellator = Tessellator.getInstance();
-        BufferBuilder vertexbuffer = tessellator.getBuffer();
+        BufferBuilder BufferBuilder = tessellator.getBuffer();
         GlStateManager.depthMask(false);
         GlStateManager.enableFog();
         GlStateManager.color(f, f1, f2);
-        if (OpenGlHelper.useVbo()) {
+
+        if (OpenGlHelper.useVbo())
+        {
             skyVBO.bindBuffer();
             GlStateManager.glEnableClientState(32884);
             GlStateManager.glVertexPointer(3, 5126, 12, 0);
             skyVBO.drawArrays(7);
             skyVBO.unbindBuffer();
             GlStateManager.glDisableClientState(32884);
-        } else {
+        }
+        else
+        {
             GlStateManager.callList(glSkyList);
         }
+
         GlStateManager.disableFog();
         GlStateManager.disableAlpha();
         GlStateManager.enableBlend();
         GlStateManager.tryBlendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
         RenderHelper.disableStandardItemLighting();
         float[] afloat = world.provider.calcSunriseSunsetColors(world.getCelestialAngle(partialTicks), partialTicks);
-        if (afloat != null) {
+
+        if (afloat != null)
+        {
             GlStateManager.disableTexture2D();
             GlStateManager.shadeModel(7425);
             GlStateManager.pushMatrix();
-            GlStateManager.rotate(90.0f, 1.0f, 0.0f, 0.0f);
-            GlStateManager.rotate(MathHelper.sin(world.getCelestialAngleRadians(partialTicks)) < 0.0f ? 180.0f : 0.0f, 0.0f, 0.0f, 1.0f);
-            GlStateManager.rotate(90.0f, 0.0f, 0.0f, 1.0f);
+            GlStateManager.rotate(90.0F, 1.0F, 0.0F, 0.0F);
+            GlStateManager.rotate(MathHelper.sin(world.getCelestialAngleRadians(partialTicks)) < 0.0F ? 180.0F : 0.0F, 0.0F, 0.0F, 1.0F);
+            GlStateManager.rotate(90.0F, 0.0F, 0.0F, 1.0F);
             float f6 = afloat[0];
             float f7 = afloat[1];
             float f8 = afloat[2];
-            vertexbuffer.begin(6, DefaultVertexFormats.POSITION_COLOR);
-            vertexbuffer.pos(0.0, 100.0, 0.0).color(f6, f7, f8, afloat[3] * (1.0f - insideVoid)).endVertex();
-            for (int l = 0; l <= 16; ++l) {
-                float f21 = (float) l * ((float) Math.PI * 2) / 16.0f;
+
+			/*if (pass != 2) Botania - no anaglyph stuff
+			{
+				float f9 = (f6 * 30.0F + f7 * 59.0F + f8 * 11.0F) / 100.0F;
+				float f10 = (f6 * 30.0F + f7 * 70.0F) / 100.0F;
+				float f11 = (f6 * 30.0F + f8 * 70.0F) / 100.0F;
+				f6 = f9;
+				f7 = f10;
+				f8 = f11;
+			}*/
+
+            BufferBuilder.begin(6, DefaultVertexFormats.POSITION_COLOR);
+            BufferBuilder.pos(0.0D, 100.0D, 0.0D).color(f6, f7, f8, afloat[3] * (1F - insideVoid)).endVertex(); // Botania - darken in void
+            for (int l = 0; l <= 16; ++l)
+            {
+                float f21 = l * ((float)Math.PI * 2F) / 16.0F;
                 float f12 = MathHelper.sin(f21);
                 float f13 = MathHelper.cos(f21);
-                vertexbuffer.pos(f12 * 120.0f, f13 * 120.0f, -f13 * 40.0f * afloat[3]).color(afloat[0], afloat[1], afloat[2], 0.0f).endVertex();
+                BufferBuilder.pos(f12 * 120.0F, f13 * 120.0F, -f13 * 40.0F * afloat[3]).color(afloat[0], afloat[1], afloat[2], 0.0F).endVertex();
             }
+
             tessellator.draw();
             GlStateManager.popMatrix();
             GlStateManager.shadeModel(7424);
         }
+
         GlStateManager.enableTexture2D();
         GlStateManager.tryBlendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
         GlStateManager.pushMatrix();
-        float f16 = 1.0f - world.getRainStrength(partialTicks);
-        GlStateManager.color(1.0f, 1.0f, 1.0f, f16);
-        GlStateManager.rotate(-90.0f, 0.0f, 1.0f, 0.0f);
-        float effCelAng = celAng = world.getCelestialAngle(partialTicks);
-        if ((double) celAng > 0.5) {
-            effCelAng = 0.5f - (celAng - 0.5f);
-        }
-        float f17 = 20.0f;
-        float lowA = Math.max(0.0f, effCelAng - 0.3f) * f16;
-        float a = Math.max(0.1f, lowA);
+        float f16 = 1.0F - world.getRainStrength(partialTicks);
+        GlStateManager.color(1.0F, 1.0F, 1.0F, f16);
+        GlStateManager.rotate(-90.0F, 0.0F, 1.0F, 0.0F);
+
+        float f17; // Botania - move declaration up from below "extra stuff"
+
+        // Botania - Begin extra stuff
+        float celAng = world.getCelestialAngle(partialTicks);
+        float effCelAng = celAng;
+        if(celAng > 0.5)
+            effCelAng = 0.5F - (celAng - 0.5F);
+
+        // === Planets
+        f17 = 20F;
+        float lowA = Math.max(0F, effCelAng - 0.3F) * f16;
+        float a = Math.max(0.1F, lowA);
+
         GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
         GlStateManager.pushMatrix();
-        GlStateManager.color(1.0f, 1.0f, 1.0f, a * 4.0f * (1.0f - insideVoid));
-        GlStateManager.rotate(90.0f, 0.5f, 0.5f, 0.0f);
-        block14:
-        for (int p = 0; p < planetTextures.length; ++p) {
+        GlStateManager.color(1F, 1F, 1F, a * 4 * (1F - insideVoid));
+        GlStateManager.rotate(90F, 0.5F, 0.5F, 0.0F);
+        for(int p = 0; p < planetTextures.length; p++) {
             mc.renderEngine.bindTexture(planetTextures[p]);
-            tessellator.getBuffer().begin(7, DefaultVertexFormats.POSITION_TEX);
-            tessellator.getBuffer().pos(-f17, 100.0, -f17).tex(0.0, 0.0).endVertex();
-            tessellator.getBuffer().pos(f17, 100.0, -f17).tex(1.0, 0.0).endVertex();
-            tessellator.getBuffer().pos(f17, 100.0, f17).tex(1.0, 1.0).endVertex();
-            tessellator.getBuffer().pos(-f17, 100.0, f17).tex(0.0, 1.0).endVertex();
+            tessellator.getBuffer().begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX);
+            tessellator.getBuffer().pos(-f17, 100.0D, -f17).tex(0.0D, 0.0D).endVertex();
+            tessellator.getBuffer().pos(f17, 100.0D, -f17).tex(1.0D, 0.0D).endVertex();
+            tessellator.getBuffer().pos(f17, 100.0D, f17).tex(1.0D, 1.0D).endVertex();
+            tessellator.getBuffer().pos(-f17, 100.0D, f17).tex(0.0D, 1.0D).endVertex();
             tessellator.draw();
-            switch (p) {
-                case 0: {
-                    GlStateManager.rotate(70.0f, 1.0f, 0.0f, 0.0f);
-                    f17 = 12.0f;
-                    continue block14;
-                }
-                case 1: {
-                    GlStateManager.rotate(120.0f, 0.0f, 0.0f, 1.0f);
-                    f17 = 15.0f;
-                    continue block14;
-                }
-                case 2: {
-                    GlStateManager.rotate(80.0f, 1.0f, 0.0f, 1.0f);
-                    f17 = 25.0f;
-                    continue block14;
-                }
-                case 3: {
-                    GlStateManager.rotate(100.0f, 0.0f, 0.0f, 1.0f);
-                    f17 = 10.0f;
-                    continue block14;
-                }
-                case 4: {
-                    GlStateManager.rotate(-60.0f, 1.0f, 0.0f, 0.5f);
-                    f17 = 40.0f;
-                }
+
+            switch(p) {
+                case 0:
+                    GlStateManager.rotate(70F, 1F, 0F, 0F);
+                    f17 = 12F;
+                    break;
+                case 1:
+                    GlStateManager.rotate(120F, 0F, 0F, 1F);
+                    f17 = 15F;
+                    break;
+                case 2:
+                    GlStateManager.rotate(80F, 1F, 0F, 1F);
+                    f17 = 25F;
+                    break;
+                case 3:
+                    GlStateManager.rotate(100F, 0F, 0F, 1F);
+                    f17 = 10F;
+                    break;
+                case 4:
+                    GlStateManager.rotate(-60F, 1F, 0F, 0.5F);
+                    f17 = 40F;
             }
         }
-        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+        GlStateManager.color(1F, 1F, 1F, 1F);
         GlStateManager.popMatrix();
+
+        // === Rays
         mc.renderEngine.bindTexture(textureSkybox);
-        f17 = 20.0f;
+
+        f17 = 20F;
         a = lowA;
         GlStateManager.pushMatrix();
         GlStateManager.tryBlendFuncSeparate(770, 1, 1, 0);
-        GlStateManager.translate(0.0f, -1.0f, 0.0f);
-        GlStateManager.rotate(220.0f, 1.0f, 0.0f, 0.0f);
-        GlStateManager.color(1.0f, 1.0f, 1.0f, a);
+        GlStateManager.translate(0F, -1F, 0F);
+        GlStateManager.rotate(220F, 1F, 0F, 0F);
+        GlStateManager.color(1F, 1F, 1F, a);
         int angles = 90;
-        float y = 2.0f;
-        float y0 = 0.0f;
-        float uPer = 0.0027777778f;
-        float anglePer = 360.0f / (float) angles;
-        double fuzzPer = Math.PI * 10 / (double) angles;
-        float rotSpeed = 1.0f;
-        float rotSpeedMod = 0.4f;
-        block15:
-        for (int p = 0; p < 3; ++p) {
-            float baseAngle = rotSpeed * rotSpeedMod * ((float) ModEventHandler.ticksInGame + ModEventHandler.partialTicks);
-            GlStateManager.rotate(((float) ModEventHandler.ticksInGame + ModEventHandler.partialTicks) * 0.25f * rotSpeed * rotSpeedMod, 0.0f, 1.0f, 0.0f);
-            tessellator.getBuffer().begin(7, DefaultVertexFormats.POSITION_TEX);
-            for (int i2 = 0; i2 < angles; ++i2) {
-                int j = i2;
-                if (i2 % 2 == 0) {
-                    --j;
-                }
-                float ang = (float) j * anglePer + baseAngle;
-                double xp = Math.cos((double) ang * Math.PI / 180.0) * (double) f17;
-                double zp = Math.sin((double) ang * Math.PI / 180.0) * (double) f17;
-                double yo = Math.sin(fuzzPer * (double) j) * 1.0;
+        float y = 2F;
+        float y0 = 0F;
+        float uPer = 1F / 360F;
+        float anglePer = 360F / angles;
+        double fuzzPer = Math.PI * 10 / angles;
+        float rotSpeed = 1F;
+        float rotSpeedMod = 0.4F;
+
+        for(int p = 0; p < 3; p++) {
+            float baseAngle = rotSpeed * rotSpeedMod * (ModEventHandler.ticksInGame + ModEventHandler.partialTicks);
+            GlStateManager.rotate((ModEventHandler.ticksInGame + ModEventHandler.partialTicks) * 0.25F * rotSpeed * rotSpeedMod, 0F, 1F, 0F);
+
+            tessellator.getBuffer().begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX);
+            for(int i = 0; i < angles; i++) {
+                int j = i;
+                if(i % 2 == 0)
+                    j--;
+
+                float ang = j * anglePer + baseAngle;
+                double xp = Math.cos(ang * Math.PI / 180F) * f17;
+                double zp = Math.sin(ang * Math.PI / 180F) * f17;
+                double yo = Math.sin(fuzzPer * j) * 1;
+
                 float ut = ang * uPer;
-                if (i2 % 2 == 0) {
-                    tessellator.getBuffer().pos(xp, yo + (double) y0 + (double) y, zp).tex(ut, 1.0).endVertex();
-                    tessellator.getBuffer().pos(xp, yo + (double) y0, zp).tex(ut, 0.0).endVertex();
-                    continue;
+                if(i % 2 == 0) {
+                    tessellator.getBuffer().pos(xp, yo + y0 + y, zp).tex(ut, 1F).endVertex();
+                    tessellator.getBuffer().pos(xp, yo + y0, zp).tex(ut, 0).endVertex();
+                } else {
+                    tessellator.getBuffer().pos(xp, yo + y0, zp).tex(ut, 0).endVertex();
+                    tessellator.getBuffer().pos(xp, yo + y0 + y, zp).tex(ut, 1F).endVertex();
                 }
-                tessellator.getBuffer().pos(xp, yo + (double) y0, zp).tex(ut, 0.0).endVertex();
-                tessellator.getBuffer().pos(xp, yo + (double) y0 + (double) y, zp).tex(ut, 1.0).endVertex();
+
             }
             tessellator.draw();
-            switch (p) {
-                case 0: {
-                    GlStateManager.rotate(20.0f, 1.0f, 0.0f, 0.0f);
-                    GlStateManager.color(1.0f, 0.4f, 0.4f, a);
-                    fuzzPer = 43.982297150257104 / (double) angles;
-                    rotSpeed = 0.2f;
-                    continue block15;
-                }
-                case 1: {
-                    GlStateManager.rotate(50.0f, 1.0f, 0.0f, 0.0f);
-                    GlStateManager.color(0.4f, 1.0f, 0.7f, a);
-                    fuzzPer = Math.PI * 6 / (double) angles;
-                    rotSpeed = 2.0f;
-                }
+
+            switch(p) {
+                case 0:
+                    GlStateManager.rotate(20F, 1F, 0F, 0F);
+                    GlStateManager.color(1F, 0.4F, 0.4F, a);
+                    fuzzPer = Math.PI * 14 / angles;
+                    rotSpeed = 0.2F;
+                    break;
+                case 1:
+                    GlStateManager.rotate(50F, 1F, 0F, 0F);
+                    GlStateManager.color(0.4F, 1F, 0.7F, a);
+                    fuzzPer = Math.PI * 6 / angles;
+                    rotSpeed = 2F;
+                    break;
             }
         }
         GlStateManager.popMatrix();
+
+        // === Rainbow
         GlStateManager.pushMatrix();
         GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
         mc.renderEngine.bindTexture(textureRainbow);
-        f17 = 10.0f;
+        f17 = 10F;
         float effCelAng1 = celAng;
-        if (effCelAng1 > 0.25f) {
-            effCelAng1 = 1.0f - effCelAng1;
-        }
-        effCelAng1 = 0.25f - Math.min(0.25f, effCelAng1);
-        long time = world.getWorldTime() + 1000L;
+        if(effCelAng1 > 0.25F)
+            effCelAng1 = 1F - effCelAng1;
+        effCelAng1 = 0.25F - Math.min(0.25F, effCelAng1);
+
+        long time = world.getWorldTime() + 1000;
         int day = (int) (time / 24000L);
-        Random rand = new Random(day * 255);
-        float angle1 = rand.nextFloat() * 360.0f;
-        float angle2 = rand.nextFloat() * 360.0f;
-        GlStateManager.color(1.0f, 1.0f, 1.0f, effCelAng1 * (1.0f - insideVoid));
-        GlStateManager.rotate(angle1, 0.0f, 1.0f, 0.0f);
-        GlStateManager.rotate(angle2, 0.0f, 0.0f, 1.0f);
-        tessellator.getBuffer().begin(7, DefaultVertexFormats.POSITION_TEX);
-        for (i = 0; i < angles; ++i) {
+        Random rand = new Random(day * 0xFF);
+        float angle1 = rand.nextFloat() * 360F;
+        float angle2 = rand.nextFloat() * 360F;
+        GlStateManager.color(1F, 1F, 1F, effCelAng1 * (1F - insideVoid));
+        GlStateManager.rotate(angle1, 0F, 1F, 0F);
+        GlStateManager.rotate(angle2, 0F, 0F, 1F);
+
+        tessellator.getBuffer().begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX);
+        for(int i = 0; i < angles; i++) {
             int j = i;
-            if (i % 2 == 0) {
-                --j;
-            }
-            float ang = (float) j * anglePer;
-            double xp = Math.cos((double) ang * Math.PI / 180.0) * (double) f17;
-            double zp = Math.sin((double) ang * Math.PI / 180.0) * (double) f17;
-            double yo = 0.0;
+            if(i % 2 == 0)
+                j--;
+
+            float ang = j * anglePer;
+            double xp = Math.cos(ang * Math.PI / 180F) * f17;
+            double zp = Math.sin(ang * Math.PI / 180F) * f17;
+            double yo = 0;
+
             float ut = ang * uPer;
-            if (i % 2 == 0) {
-                tessellator.getBuffer().pos(xp, yo + (double) y0 + (double) y, zp).tex(ut, 1.0).endVertex();
-                tessellator.getBuffer().pos(xp, yo + (double) y0, zp).tex(ut, 0.0).endVertex();
-                continue;
+            if(i % 2 == 0) {
+                tessellator.getBuffer().pos(xp, yo + y0 + y, zp).tex(ut, 1F).endVertex();
+                tessellator.getBuffer().pos(xp, yo + y0, zp).tex(ut, 0).endVertex();
+            } else {
+                tessellator.getBuffer().pos(xp, yo + y0, zp).tex(ut, 0).endVertex();
+                tessellator.getBuffer().pos(xp, yo + y0 + y, zp).tex(ut, 1F).endVertex();
             }
-            tessellator.getBuffer().pos(xp, yo + (double) y0, zp).tex(ut, 0.0).endVertex();
-            tessellator.getBuffer().pos(xp, yo + (double) y0 + (double) y, zp).tex(ut, 1.0).endVertex();
+
         }
         tessellator.draw();
         GlStateManager.popMatrix();
-        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f - insideVoid);
+        GlStateManager.color(1F, 1F, 1F, 1F - insideVoid);
         GlStateManager.tryBlendFuncSeparate(770, 1, 1, 0);
-        GlStateManager.rotate(world.getCelestialAngle(partialTicks) * 360.0f, 1.0f, 0.0f, 0.0f);
-        f17 = 60.0f;
+        // Botania - End extra stuff
+
+
+        GlStateManager.rotate(world.getCelestialAngle(partialTicks) * 360.0F, 1.0F, 0.0F, 0.0F);
+        /*float*/ f17 = 60.0F; // Botania - 30 -> 60 and move declaration above "extra stuff"
         mc.renderEngine.bindTexture(SUN_TEXTURES);
-        vertexbuffer.begin(7, DefaultVertexFormats.POSITION_TEX);
-        vertexbuffer.pos(-f17, 100.0, -f17).tex(0.0, 0.0).endVertex();
-        vertexbuffer.pos(f17, 100.0, -f17).tex(1.0, 0.0).endVertex();
-        vertexbuffer.pos(f17, 100.0, f17).tex(1.0, 1.0).endVertex();
-        vertexbuffer.pos(-f17, 100.0, f17).tex(0.0, 1.0).endVertex();
+        BufferBuilder.begin(7, DefaultVertexFormats.POSITION_TEX);
+        BufferBuilder.pos(-f17, 100.0D, -f17).tex(0.0D, 0.0D).endVertex();
+        BufferBuilder.pos(f17, 100.0D, -f17).tex(1.0D, 0.0D).endVertex();
+        BufferBuilder.pos(f17, 100.0D, f17).tex(1.0D, 1.0D).endVertex();
+        BufferBuilder.pos(-f17, 100.0D, f17).tex(0.0D, 1.0D).endVertex();
         tessellator.draw();
-        f17 = 60.0f;
+        f17 = 60.0F; // Botania - 20 -> 60
         mc.renderEngine.bindTexture(MOON_PHASES_TEXTURES);
-        i = world.getMoonPhase();
+        int i = world.getMoonPhase();
         int k = i % 4;
         int i1 = i / 4 % 2;
-        float f22 = (float) (k + 0) / 4.0f;
-        float f23 = (float) (i1 + 0) / 2.0f;
-        float f24 = (float) (k + 1) / 4.0f;
-        float f14 = (float) (i1 + 1) / 2.0f;
-        vertexbuffer.begin(7, DefaultVertexFormats.POSITION_TEX);
-        vertexbuffer.pos(-f17, -100.0, f17).tex(f24, f14).endVertex();
-        vertexbuffer.pos(f17, -100.0, f17).tex(f22, f14).endVertex();
-        vertexbuffer.pos(f17, -100.0, -f17).tex(f22, f23).endVertex();
-        vertexbuffer.pos(-f17, -100.0, -f17).tex(f24, f23).endVertex();
+        float f22 = (k + 0) / 4.0F;
+        float f23 = (i1 + 0) / 2.0F;
+        float f24 = (k + 1) / 4.0F;
+        float f14 = (i1 + 1) / 2.0F;
+        BufferBuilder.begin(7, DefaultVertexFormats.POSITION_TEX);
+        BufferBuilder.pos(-f17, -100.0D, f17).tex(f24, f14).endVertex();
+        BufferBuilder.pos(f17, -100.0D, f17).tex(f22, f14).endVertex();
+        BufferBuilder.pos(f17, -100.0D, -f17).tex(f22, f23).endVertex();
+        BufferBuilder.pos(-f17, -100.0D, -f17).tex(f24, f23).endVertex();
         tessellator.draw();
         GlStateManager.disableTexture2D();
-        this.renderStars(mc, f16 *= Math.max(0.1f, effCelAng * 2.0f), partialTicks);
-        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+        // Botania - Custom star rendering
+        {
+            f16 *= Math.max(0.1F, effCelAng * 2);
+            renderStars(mc, f16, partialTicks);
+        }
+		/*float f15 = this.world.getStarBrightness(partialTicks) * f16;
+
+		if (f15 > 0.0F)
+		{
+			GlStateManager.color(f15, f15, f15, f15);
+
+			if (this.vboEnabled)
+			{
+				this.starVBO.bindBuffer();
+				GlStateManager.glEnableClientState(32884);
+				GlStateManager.glVertexPointer(3, 5126, 12, 0);
+				this.starVBO.drawArrays(7);
+				this.starVBO.unbindBuffer();
+				GlStateManager.glDisableClientState(32884);
+			}
+			else
+			{
+				GlStateManager.callList(this.starGLCallList);
+			}
+		}*/
+
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         GlStateManager.disableBlend();
         GlStateManager.enableAlpha();
         GlStateManager.enableFog();
         GlStateManager.popMatrix();
+        // Botania - no horizon rendering
+		/* GlStateManager.disableTexture2D();
+		GlStateManager.color(0.0F, 0.0F, 0.0F);
+		double d0 = this.mc.player.getPositionEyes(partialTicks).y - this.world.getHorizon();
+
+		if (d0 < 0.0D)
+		{
+			GlStateManager.pushMatrix();
+			GlStateManager.translate(0.0F, 12.0F, 0.0F);
+
+			if (this.vboEnabled)
+			{
+				this.sky2VBO.bindBuffer();
+				GlStateManager.glEnableClientState(32884);
+				GlStateManager.glVertexPointer(3, 5126, 12, 0);
+				this.sky2VBO.drawArrays(7);
+				this.sky2VBO.unbindBuffer();
+				GlStateManager.glDisableClientState(32884);
+			}
+			else
+			{
+				GlStateManager.callList(this.glSkyList2);
+			}
+
+			GlStateManager.popMatrix();
+			float f18 = 1.0F;
+			float f19 = -((float)(d0 + 65.0D));
+			float f20 = -1.0F;
+			BufferBuilder.begin(7, DefaultVertexFormats.POSITION_COLOR);
+			BufferBuilder.pos(-1.0D, (double)f19, 1.0D).color(0, 0, 0, 255).endVertex();
+			BufferBuilder.pos(1.0D, (double)f19, 1.0D).color(0, 0, 0, 255).endVertex();
+			BufferBuilder.pos(1.0D, -1.0D, 1.0D).color(0, 0, 0, 255).endVertex();
+			BufferBuilder.pos(-1.0D, -1.0D, 1.0D).color(0, 0, 0, 255).endVertex();
+			BufferBuilder.pos(-1.0D, -1.0D, -1.0D).color(0, 0, 0, 255).endVertex();
+			BufferBuilder.pos(1.0D, -1.0D, -1.0D).color(0, 0, 0, 255).endVertex();
+			BufferBuilder.pos(1.0D, (double)f19, -1.0D).color(0, 0, 0, 255).endVertex();
+			BufferBuilder.pos(-1.0D, (double)f19, -1.0D).color(0, 0, 0, 255).endVertex();
+			BufferBuilder.pos(1.0D, -1.0D, -1.0D).color(0, 0, 0, 255).endVertex();
+			BufferBuilder.pos(1.0D, -1.0D, 1.0D).color(0, 0, 0, 255).endVertex();
+			BufferBuilder.pos(1.0D, (double)f19, 1.0D).color(0, 0, 0, 255).endVertex();
+			BufferBuilder.pos(1.0D, (double)f19, -1.0D).color(0, 0, 0, 255).endVertex();
+			BufferBuilder.pos(-1.0D, (double)f19, -1.0D).color(0, 0, 0, 255).endVertex();
+			BufferBuilder.pos(-1.0D, (double)f19, 1.0D).color(0, 0, 0, 255).endVertex();
+			BufferBuilder.pos(-1.0D, -1.0D, 1.0D).color(0, 0, 0, 255).endVertex();
+			BufferBuilder.pos(-1.0D, -1.0D, -1.0D).color(0, 0, 0, 255).endVertex();
+			BufferBuilder.pos(-1.0D, -1.0D, -1.0D).color(0, 0, 0, 255).endVertex();
+			BufferBuilder.pos(-1.0D, -1.0D, 1.0D).color(0, 0, 0, 255).endVertex();
+			BufferBuilder.pos(1.0D, -1.0D, 1.0D).color(0, 0, 0, 255).endVertex();
+			BufferBuilder.pos(1.0D, -1.0D, -1.0D).color(0, 0, 0, 255).endVertex();
+			tessellator.draw();
+		}
+
+		if (this.world.provider.isSkyColored())
+		{
+			GlStateManager.color(f * 0.2F + 0.04F, f1 * 0.2F + 0.04F, f2 * 0.6F + 0.1F);
+		}
+		else
+		{
+			GlStateManager.color(f, f1, f2);
+		}
+
+		GlStateManager.pushMatrix();
+		GlStateManager.translate(0.0F, -((float)(d0 - 16.0D)), 0.0F);
+		GlStateManager.callList(this.glSkyList2);
+		GlStateManager.popMatrix();*/
         GlStateManager.enableTexture2D();
         GlStateManager.depthMask(true);
     }
 
     private void renderStars(Minecraft mc, float alpha, float partialTicks) {
-        VertexBuffer starVBO;
-        int starGLCallList;
-        try {
-            starGLCallList = (int) ModMethodHandles.starGLCallList_getter.invokeExact(mc.renderGlobal);
-            starVBO = (VertexBuffer) ModMethodHandles.starVBO_getter.invokeExact(mc.renderGlobal);
-        } catch (Throwable t) {
-            return;
-        }
-        float t = ((float) ModEventHandler.ticksInGame + partialTicks + 2000.0f) * 0.005f;
+        int starGLCallList = mc.renderGlobal.starGLCallList;
+        net.minecraft.client.renderer.vertex.VertexBuffer starVBO = mc.renderGlobal.starVBO;
+
+        float t = (ModEventHandler.ticksInGame + partialTicks + 2000) * 0.005F;
         GlStateManager.pushMatrix();
+
         GlStateManager.pushMatrix();
-        GlStateManager.rotate(t * 3.0f, 0.0f, 1.0f, 0.0f);
-        GlStateManager.color(1.0f, 1.0f, 1.0f, alpha);
-        this.drawVboOrList(starVBO, starGLCallList);
+        GlStateManager.rotate(t * 3, 0F, 1F, 0F);
+        GlStateManager.color(1F, 1F, 1F, alpha);
+        drawVboOrList(starVBO, starGLCallList);
         GlStateManager.popMatrix();
+
         GlStateManager.pushMatrix();
-        GlStateManager.rotate(t, 0.0f, 1.0f, 0.0f);
-        GlStateManager.color(0.5f, 1.0f, 1.0f, alpha);
-        this.drawVboOrList(starVBO, starGLCallList);
+        GlStateManager.rotate(t, 0F, 1F, 0F);
+        GlStateManager.color(0.5F, 1F, 1F, alpha);
+        drawVboOrList(starVBO, starGLCallList);
         GlStateManager.popMatrix();
+
         GlStateManager.pushMatrix();
-        GlStateManager.rotate(t * 2.0f, 0.0f, 1.0f, 0.0f);
-        GlStateManager.color(1.0f, 0.75f, 0.75f, alpha);
-        this.drawVboOrList(starVBO, starGLCallList);
+        GlStateManager.rotate(t * 2, 0F, 1F, 0F);
+        GlStateManager.color(1F, 0.75F, 0.75F, alpha);
+        drawVboOrList(starVBO, starGLCallList);
         GlStateManager.popMatrix();
+
         GlStateManager.pushMatrix();
-        GlStateManager.rotate(t * 3.0f, 0.0f, 0.0f, 1.0f);
-        GlStateManager.color(1.0f, 1.0f, 1.0f, 0.25f * alpha);
-        this.drawVboOrList(starVBO, starGLCallList);
+        GlStateManager.rotate(t * 3, 0F, 0F, 1F);
+        GlStateManager.color(1F, 1F, 1F, 0.25F * alpha);
+        drawVboOrList(starVBO, starGLCallList);
         GlStateManager.popMatrix();
+
         GlStateManager.pushMatrix();
-        GlStateManager.rotate(t, 0.0f, 0.0f, 1.0f);
-        GlStateManager.color(0.5f, 1.0f, 1.0f, 0.25f * alpha);
-        this.drawVboOrList(starVBO, starGLCallList);
+        GlStateManager.rotate(t, 0F, 0F, 1F);
+        GlStateManager.color(0.5F, 1F, 1F, 0.25F * alpha);
+        drawVboOrList(starVBO, starGLCallList);
         GlStateManager.popMatrix();
+
         GlStateManager.pushMatrix();
-        GlStateManager.rotate(t * 2.0f, 0.0f, 0.0f, 1.0f);
-        GlStateManager.color(1.0f, 0.75f, 0.75f, 0.25f * alpha);
-        this.drawVboOrList(starVBO, starGLCallList);
+        GlStateManager.rotate(t * 2, 0F, 0F, 1F);
+        GlStateManager.color(1F, 0.75F, 0.75F, 0.25F * alpha);
+        drawVboOrList(starVBO, starGLCallList);
         GlStateManager.popMatrix();
+
         GlStateManager.popMatrix();
     }
 
-    private void drawVboOrList(VertexBuffer vbo, int displayList) {
-        if (OpenGlHelper.useVbo()) {
+    // Excised from many occurences in RenderGlobal
+    private void drawVboOrList(net.minecraft.client.renderer.vertex.VertexBuffer vbo, int displayList) {
+        if (OpenGlHelper.useVbo())
+        {
             vbo.bindBuffer();
-            GlStateManager.glEnableClientState(32884);
-            GlStateManager.glVertexPointer(3, 5126, 12, 0);
-            vbo.drawArrays(7);
+            GlStateManager.glEnableClientState(GL11.GL_VERTEX_ARRAY);
+            GlStateManager.glVertexPointer(3, GL11.GL_FLOAT, 12, 0);
+            vbo.drawArrays(GL11.GL_QUADS);
             vbo.unbindBuffer();
-            GlStateManager.glDisableClientState(32884);
-        } else {
+            GlStateManager.glDisableClientState(GL11.GL_VERTEX_ARRAY);
+        }
+        else
+        {
             GlStateManager.callList(displayList);
         }
     }
+
 }
