@@ -311,8 +311,8 @@ public class SkyblockSkyRenderer extends IRenderHandler {
         int i = world.getMoonPhase();
         int k = i % 4;
         int i1 = i / 4 % 2;
-        float f22 = (k + 0) / 4.0F;
-        float f23 = (i1 + 0) / 2.0F;
+        float f22 = k / 4.0F;
+        float f23 = i1 / 2.0F;
         float f24 = (k + 1) / 4.0F;
         float f14 = (i1 + 1) / 2.0F;
         BufferBuilder.begin(7, DefaultVertexFormats.POSITION_TEX);

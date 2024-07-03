@@ -45,7 +45,7 @@ public class ModEventHandler {
     @SubscribeEvent
     public static void onRender(RenderWorldLastEvent event) {
         WorldClient world = Minecraft.getMinecraft().world;
-        if (world.provider.getDimension() == 1 && !(world.provider.getSkyRenderer() instanceof SkyblockSkyRenderer)) {
+        if (world.provider.getDimension() == 0 && !(world.provider.getSkyRenderer() instanceof SkyblockSkyRenderer)) {
             world.provider.setSkyRenderer(new SkyblockSkyRenderer());
         }
     }
